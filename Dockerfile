@@ -1,4 +1,6 @@
-FROM amazonlinux:2023
+# FROM --platform=linux/amd64 amazonlinux:2023
+# FROM --platform=linux/amd64 amazon/aws-lambda-python:3.12
+FROM --platform=linux/amd64 public.ecr.aws/amazonlinux/amazonlinux:2023
 
 # Set up working directories
 RUN mkdir -p /opt/app
