@@ -73,6 +73,11 @@ def event_object(event, event_source="s3"):
     if (not bucket_name) or (not key_name):
         raise Exception("Unable to retrieve object from event.\n{}".format(event))
 
+    size = record["s3"]["object"]["size"]/(1024*1024)
+    # Ensure that the key is not greater than 500MB
+    if size > 500:
+        raise Exception("[Errno 28] Object size %sMB is greater than 500MB. Aborting processing of %s.%s"% (str(size), bucket_name, key_name))
+
     # Create and return the object
     s3 = boto3.resource("s3", endpoint_url=S3_ENDPOINT)
     return s3.Object(bucket_name, key_name)
@@ -181,6 +186,7 @@ def sns_scan_results(
     message = {
         "bucket": s3_object.bucket_name,
         "key": s3_object.key,
+        "version": s3_object.version_id,
         AV_SIGNATURE_METADATA: scan_signature,
         AV_STATUS_METADATA: scan_result,
         AV_TIMESTAMP_METADATA: get_timestamp(),
@@ -201,6 +207,8 @@ def sns_scan_results(
 
 
 def lambda_handler(event, context):
+    file_name = json.dumps(event['Records'][0]['s3']['object']['key'])
+    file_size = json.dumps(event['Records'][0]['s3']['object']['size']/(1024*1024))
     s3 = boto3.resource("s3", endpoint_url=S3_ENDPOINT)
     s3_client = boto3.client("s3", endpoint_url=S3_ENDPOINT)
     sns_client = boto3.client("sns", endpoint_url=SNS_ENDPOINT)
@@ -210,7 +218,7 @@ def lambda_handler(event, context):
     EVENT_SOURCE = os.getenv("EVENT_SOURCE", "S3")
 
     start_time = get_timestamp()
-    print("Script starting at %s\n" % (start_time))
+    print("Script starting at %s for file %s of size %sMB" % (start_time, file_name, str(file_size)))
     s3_object = event_object(event, event_source=EVENT_SOURCE)
 
     if str_to_bool(AV_PROCESS_ORIGINAL_VERSION_ONLY):
@@ -269,6 +277,7 @@ def lambda_handler(event, context):
     if str_to_bool(AV_DELETE_INFECTED_FILES) and scan_result == AV_STATUS_INFECTED:
         delete_s3_object(s3_object)
     stop_scan_time = get_timestamp()
+    os.system("du -sch /tmp/* | grep total")
     print("Script finished at %s\n" % stop_scan_time)
 
 
