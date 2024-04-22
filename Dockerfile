@@ -1,6 +1,6 @@
 # FROM --platform=linux/amd64 amazonlinux:2023
 # FROM --platform=linux/amd64 amazon/aws-lambda-python:3.12
-FROM --platform=linux/amd64 public.ecr.aws/amazonlinux/amazonlinux:2023
+FROM --platform=linux/amd64 public.ecr.aws/sam/build-python3.12
 
 # Set up working directories
 RUN mkdir -p /opt/app
@@ -75,18 +75,19 @@ RUN echo "DatabaseMirror database.clamav.net" > /opt/app/bin/freshclam.conf && \
     echo "ScriptedUpdates no" >> /opt/app/bin/freshclam.conf && \
     echo "DatabaseDirectory /var/lib/clamav" >> /opt/app/bin/freshclam.conf
 
-RUN groupadd clamav
-RUN useradd -g clamav -s /bin/false -c "Clam Antivirus" clamav
-RUN useradd -g clamav -s /bin/false -c "Clam Antivirus" clamupdate
+RUN /sbin/groupadd clamav
+RUN /sbin/useradd -g clamav -s /bin/false -c "Clam Antivirus" clamav
+RUN /sbin/useradd -g clamav -s /bin/false -c "Clam Antivirus" clamupdate
 
 ENV LD_LIBRARY_PATH=/opt/app/bin
-RUN ldconfig
+RUN /sbin/ldconfig
 
 # Create the zip file
 WORKDIR /opt/app
+
 RUN zip -r9 --exclude="*test*" /opt/app/build/anti-virus.zip *.py bin
 
-WORKDIR /usr/local/lib/python3.9/site-packages
+WORKDIR /var/lang/lib/python3.12/site-packages
 RUN zip -r9 /opt/app/build/anti-virus.zip *
 
 WORKDIR /opt/app
